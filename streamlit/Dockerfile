@@ -8,4 +8,4 @@ COPY . /app
 
 EXPOSE 8501
 
-CMD sleep 6; streamlit run chat.py
+CMD sleep 9; streamlit run chat.py

@@ -10,4 +10,4 @@ ENV HF_API_TOKEN=${HF_API_TOKEN}
 
 EXPOSE 1416
 
-CMD sleep 5; uvicorn fast_api:app --host 0.0.0.0 --port 1416
+CMD sleep 8; uvicorn fast_api:app --host 0.0.0.0 --port 1416

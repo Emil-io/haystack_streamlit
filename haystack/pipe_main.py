@@ -8,9 +8,11 @@ from haystack_integrations.document_stores.opensearch import OpenSearchDocumentS
 from pathlib import Path
 from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack.components.builders import PromptBuilder
-from haystack.components.generators import HuggingFaceLocalGenerator, HuggingFaceTGIGenerator
+from haystack.components.generators import HuggingFaceTGIGenerator
 from haystack_integrations.components.retrievers.opensearch import OpenSearchEmbeddingRetriever
 from haystack.components.embedders import HuggingFaceTEIDocumentEmbedder
+from haystack.document_stores.types import DuplicatePolicy
+
 
 import os
 from dotenv import load_dotenv
@@ -44,7 +46,7 @@ def init_indexing_pipe():
     document_splitter = DocumentSplitter(split_by="word", split_length=150, split_overlap=50)
 
     document_embedder = HuggingFaceTEIDocumentEmbedder(model="mixedbread-ai/mxbai-embed-large-v1", )
-    document_writer = DocumentWriter(document_store)
+    document_writer = DocumentWriter(document_store, policy=DuplicatePolicy.OVERWRITE)
 
     preprocessing_pipeline.add_component(instance=file_type_router, name="file_type_router")
     preprocessing_pipeline.add_component(instance=text_file_converter, name="text_file_converter")
@@ -73,7 +75,7 @@ def index_files():
         init_indexing_pipe()
 
     preprocessing_pipeline.run(
-        {"file_type_router": {"sources": list(Path("/Users/emildeepset/Desktop/DatenSaetze/TestDaten").glob("**/*"))}})
+        {"file_type_router": {"sources": list(Path("./TestData").glob("**/*"))}})
 
 
 
@@ -81,19 +83,21 @@ def init_query_pipeline():
     global pipe
     pipe = Pipeline()
     template = """
-    Answer the questions based on the given context.
+    Beantworte die Frage anhand des gegebenen Kontexts.
+    
+    Merke zudem an, aus welchen Dokumenten du die Antowrten ziehst.
 
-    Context:
+    Kontext:
     {% for document in documents %}
         {{ document.content }}
     {% endfor %}
 
-    Question: {{ question }}
-    Answer:
+    Frage: {{ question }}
+    Antwort:
     """
     pipe = Pipeline()
     pipe.add_component("embedder", SentenceTransformersTextEmbedder(model="mixedbread-ai/mxbai-embed-large-v1"))
-    pipe.add_component("retriever", OpenSearchEmbeddingRetriever(document_store=document_store))
+    pipe.add_component("retriever", OpenSearchEmbeddingRetriever(document_store=document_store, top_k=5))
     pipe.add_component("prompt_builder", PromptBuilder(template=template))
     pipe.add_component("llm", HuggingFaceTGIGenerator("mistralai/Mixtral-8x7B-Instruct-v0.1"))
 
