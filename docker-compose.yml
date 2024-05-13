@@ -1,0 +1,29 @@
+services:
+  opensearch:
+    image:  opensearchproject/opensearch:latest
+    restart: always
+    container_name: opensearch
+    ports:
+      - 9200:9200
+      - 9600:9600
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true # Prevents execution of bundled demo script which installs demo certificates and security configurations to OpenSearch
+      - DISABLE_SECURITY_PLUGIN=true
+
+  hayhooks:
+    build: ./haystack
+    container_name: haystack
+    ports:
+      - "1416:1416"
+    environment:
+      - HF_API_TOKEN=${HF_API_TOKEN}
+
+  streamlit:
+    build: ./streamlit
+    container_name: streamlit
+    ports:
+       - "8501:8501"
+
+
