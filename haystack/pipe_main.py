@@ -45,7 +45,7 @@ def init_indexing_pipe():
     document_cleaner = DocumentCleaner()
     document_splitter = DocumentSplitter(split_by="word", split_length=150, split_overlap=50)
 
-    document_embedder = HuggingFaceTEIDocumentEmbedder(model="mixedbread-ai/mxbai-embed-large-v1", )
+    document_embedder = HuggingFaceTEIDocumentEmbedder(model="mixedbread-ai/mxbai-embed-large-v1")
     document_writer = DocumentWriter(document_store, policy=DuplicatePolicy.OVERWRITE)
 
     preprocessing_pipeline.add_component(instance=file_type_router, name="file_type_router")
