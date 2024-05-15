@@ -5,6 +5,8 @@ app = FastAPI()
 
 @app.on_event("startup")
 def load_model():
+    pipe_main.init_indexing_pipe()
+    pipe_main.init_query_pipeline()
     pipe_main.index_files()
 
 @app.post("/query")

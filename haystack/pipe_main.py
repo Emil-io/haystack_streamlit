@@ -97,9 +97,9 @@ def init_query_pipeline():
     """
     pipe = Pipeline()
     pipe.add_component("embedder", SentenceTransformersTextEmbedder(model="./model/sentenceTransformer"))
-    pipe.add_component("retriever", OpenSearchEmbeddingRetriever(document_store=document_store, top_k=5))
+    pipe.add_component("retriever", OpenSearchEmbeddingRetriever(document_store=document_store, top_k=4))
     pipe.add_component("prompt_builder", PromptBuilder(template=template))
-    pipe.add_component("llm", HuggingFaceTGIGenerator("mistralai/Mixtral-8x7B-Instruct-v0.1"))
+    pipe.add_component("llm", HuggingFaceTGIGenerator("mistralai/Mistral-7B-Instruct-v0.2"))
 
     pipe.connect("embedder.embedding", "retriever.query_embedding")
     pipe.connect("retriever", "prompt_builder.documents")
