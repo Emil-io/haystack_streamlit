@@ -1,4 +1,5 @@
 # Haystack Demo
 
-1. create .env file with HuggingFace token
-2. load model into the directoy by executing the lode_model.py file
+1. Accept the license for the Mistral Model on HuggingFace. Since this is a gated model, this step is necessary to access it.
+2. create .env file with your HuggingFace token
+3. Load the embedding model into the directory by executing the lode_model.py file
