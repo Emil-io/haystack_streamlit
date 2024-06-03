@@ -11,6 +11,24 @@ services:
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
       - DISABLE_INSTALL_DEMO_CONFIG=true # Prevents execution of bundled demo script which installs demo certificates and security configurations to OpenSearch
       - DISABLE_SECURITY_PLUGIN=true
+    volumes:
+      - ./opensearch-data:/usr/share/opensearch/data
+    networks:
+      - mynetwork
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601 # Map host port 5601 to container port 5601
+    expose:
+      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: true # Define the OpenSearch nodes that OpenSearch Dashboards will query
+    networks:
+      - mynetwork
+
 
   haystack:
     build: ./haystack
@@ -19,11 +37,17 @@ services:
       - "1416:1416"
     environment:
       - HF_API_TOKEN=${HF_API_TOKEN}
+    networks:
+      - mynetwork
 
   streamlit:
     build: ./streamlit
     container_name: streamlit
     ports:
        - "8501:8501"
+    networks:
+      - mynetwork
 
 
+networks:
+  mynetwork:
