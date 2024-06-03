@@ -10,8 +10,10 @@ from haystack.components.embedders import SentenceTransformersTextEmbedder
 from haystack.components.builders import PromptBuilder
 from haystack.components.generators import HuggingFaceTGIGenerator
 from haystack_integrations.components.retrievers.opensearch import OpenSearchEmbeddingRetriever
-from haystack.components.embedders import HuggingFaceTEIDocumentEmbedder
+from haystack.components.embedders import HuggingFaceTEIDocumentEmbedder, HuggingFaceAPIDocumentEmbedder, HuggingFaceAPITextEmbedder
 from haystack.document_stores.types import DuplicatePolicy
+
+from DocumentMetaAdder import DocumentMetaAdder
 
 
 import os
@@ -31,11 +33,16 @@ def init_indexing_pipe():
     os.environ["HF_API_TOKEN"] = os.getenv("HF_API_TOKEN")
     host_url = os.getenv("OPENSEARCH_HOST", "http://opensearch:9200")
     http_auth_username = os.getenv("OPENSEARCH_USERNAME", "admin")
-    http_auth_password = os.getenv("OPENSEARCH_PASSWORD", "admin")
+    http_auth_password = os.getenv("OPENSEARCH_PASSWORD", "XZY_123")
 
+    custom_settings = {
+        "index.knn": True,
+        "number_of_shards": 3,
+        "number_of_replicas": 0
+    }
     document_store = OpenSearchDocumentStore(hosts=host_url, use_ssl=False,
                                              verify_certs=False, http_auth=(http_auth_username, http_auth_password),
-                                             embedding_dim=1024)
+                                             embedding_dim=1024, settings=custom_settings)
     file_type_router = FileTypeRouter(mime_types=["text/plain", "application/pdf", "text/markdown"])
     text_file_converter = TextFileToDocument()
     markdown_converter = MarkdownToDocument()
@@ -46,7 +53,10 @@ def init_indexing_pipe():
     document_splitter = DocumentSplitter(split_by="word", split_length=150, split_overlap=50)
 
     document_embedder = HuggingFaceTEIDocumentEmbedder(model="mixedbread-ai/mxbai-embed-large-v1")
+
     document_writer = DocumentWriter(document_store, policy=DuplicatePolicy.OVERWRITE)
+
+    document_meta_adder = DocumentMetaAdder()
 
     preprocessing_pipeline.add_component(instance=file_type_router, name="file_type_router")
     preprocessing_pipeline.add_component(instance=text_file_converter, name="text_file_converter")
@@ -58,6 +68,9 @@ def init_indexing_pipe():
     preprocessing_pipeline.add_component(instance=document_embedder, name="document_embedder")
     preprocessing_pipeline.add_component(instance=document_writer, name="document_writer")
 
+    preprocessing_pipeline.add_component(instance=document_meta_adder, name="document_meta_adder")
+
+
     preprocessing_pipeline.connect("file_type_router.text/plain", "text_file_converter.sources")
     preprocessing_pipeline.connect("file_type_router.application/pdf", "pypdf_converter.sources")
     preprocessing_pipeline.connect("file_type_router.text/markdown", "markdown_converter.sources")
@@ -65,7 +78,11 @@ def init_indexing_pipe():
     preprocessing_pipeline.connect("pypdf_converter", "document_joiner")
     preprocessing_pipeline.connect("markdown_converter", "document_joiner")
     preprocessing_pipeline.connect("document_joiner", "document_cleaner")
-    preprocessing_pipeline.connect("document_cleaner", "document_splitter")
+
+    preprocessing_pipeline.connect("document_cleaner", "document_meta_adder")
+    preprocessing_pipeline.connect("document_meta_adder", "document_splitter")
+
+    #preprocessing_pipeline.connect("document_cleaner", "document_splitter")
     preprocessing_pipeline.connect("document_splitter", "document_embedder")
     preprocessing_pipeline.connect("document_embedder", "document_writer")
 
@@ -73,6 +90,7 @@ def init_indexing_pipe():
 def index_files():
     if preprocessing_pipeline is None:
         init_indexing_pipe()
+
 
     preprocessing_pipeline.run(
         {"file_type_router": {"sources": list(Path("./TestData").glob("**/*"))}})
@@ -113,10 +131,13 @@ def run_query(query: str):
         "[INST] " + str(query) + "[/INST]"
     )
     result = pipe.run(
-        {
+        data = {
             "embedder": {"text": question},
             "prompt_builder": {"question": question},
-            "llm": {"generation_kwargs": {"max_new_tokens": 350}},
-        }
+            "llm": {"generation_kwargs": {"max_new_tokens": 500}},
+        },
+        include_outputs_from=["prompt_builder", "llm", "retriever"]
     )
+    print(str(result))
+
     return result
