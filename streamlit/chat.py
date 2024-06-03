@@ -20,7 +20,7 @@ if 'messages' not in st.session_state:
 
 for message in st.session_state.messages:
     with st.chat_message(message['role']):
-        st.markdown(message['content'])
+        st.markdown(message['content'], unsafe_allow_html=True)
 
 
 if prompt := st.chat_input("Stellen Sie Ihre Frage"):
@@ -62,9 +62,10 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
             for document in response["retriever"]["documents"]:
                 reference_text +=f"""
                 <details>
-                    <summary>[{count}]</summary>
+                    <summary>[{count}] {document["meta"]["file_path"]}</summary>
+                    <blockquote>
                     <p>{document["content"]}</p>
-                    <p><strong>Dateipfad</strong> <i>{document["meta"]["file_path"]}</i></p>
+                    </blockquote>
                 </details>
                 """
                 count += 1
@@ -72,7 +73,7 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
             reference_text = f"""
             <details>
                 <summary>Referenzen</summary>
-                <p>{reference_text}</p>
+                <blockquote>{reference_text}</blockquote>
             </details>
             """
 

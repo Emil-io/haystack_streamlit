@@ -37,7 +37,7 @@ def init_indexing_pipe():
 
     custom_settings = {
         "index.knn": True,
-        "number_of_shards": 3,
+        "number_of_shards": 1,
         "number_of_replicas": 0
     }
     document_store = OpenSearchDocumentStore(hosts=host_url, use_ssl=False,
