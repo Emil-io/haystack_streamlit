@@ -22,6 +22,32 @@ for message in st.session_state.messages:
     with st.chat_message(message['role']):
         st.markdown(message['content'], unsafe_allow_html=True)
 
+def format_answer(response):
+    answer = response["llm"]["replies"][0]
+
+    reference_text = ""
+    count = 1
+    for document in response["retriever"]["documents"]:
+        reference_text += f"""
+                    <details>
+                        <summary>[{count}] {document["meta"]["file_path"]} (Seite {document["meta"]["page_number"]})</summary>
+                        <blockquote>
+                        <p>{document["content"]}</p>
+                        </blockquote>
+                    </details>
+                    """
+        count += 1
+
+    reference_text = f"""
+                <details>
+                    <summary>Referenzen</summary>
+                    <blockquote>{reference_text}</blockquote>
+                </details>
+                """
+    reference_text = re.sub(r'\s+', ' ', reference_text).strip()
+
+    return answer, reference_text
+
 
 if prompt := st.chat_input("Stellen Sie Ihre Frage"):
 
@@ -40,14 +66,12 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
             message_placeholder = st.empty()
 
             url = "http://haystack:1416/query"
-
             params = {"question": current_question}
-
-
             response = requests.request("POST", url, params=params)
+            response = response.json()
 
-            response = response.json() #["llm"]["replies"][0]
-            answer = response["llm"]["replies"][0]
+            answer, reference_text = format_answer(response)
+
             answer_text = ""
 
             for word in answer.split(" "):
@@ -57,31 +81,8 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
                 message_placeholder.markdown(answer_text)
                 time.sleep(0.05)
 
-            reference_text = ""
-            count = 1
-            for document in response["retriever"]["documents"]:
-                reference_text +=f"""
-                <details>
-                    <summary>[{count}] {document["meta"]["file_path"]}</summary>
-                    <blockquote>
-                    <p>{document["content"]}</p>
-                    </blockquote>
-                </details>
-                """
-                count += 1
-
-            reference_text = f"""
-            <details>
-                <summary>Referenzen</summary>
-                <blockquote>{reference_text}</blockquote>
-            </details>
-            """
-
-            reference_text = re.sub(r'\s+', ' ', reference_text).strip()
-
             full_response = f"{answer_text} \n \n {reference_text}"
 
             message_placeholder.markdown(full_response, unsafe_allow_html=True)
-
 
             st.session_state.messages.append({"role": "assistant", "content": full_response})
