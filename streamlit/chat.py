@@ -60,17 +60,15 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
         st.experimental_rerun()
 
     else:
+        current_question = st.session_state.messages[-1]["content"]
+        url = "http://haystack:1416/query"
+        params = {"question": current_question}
+        response = requests.request("POST", url, params=params)
+        response = response.json()
+
+        answer, reference_text = format_answer(response)
         with (st.chat_message("assistant")):
-            current_question = st.session_state.messages[-1]["content"]
-
             message_placeholder = st.empty()
-
-            url = "http://haystack:1416/query"
-            params = {"question": current_question}
-            response = requests.request("POST", url, params=params)
-            response = response.json()
-
-            answer, reference_text = format_answer(response)
 
             answer_text = ""
 
@@ -81,8 +79,12 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
                 message_placeholder.markdown(answer_text)
                 time.sleep(0.05)
 
-            full_response = f"{answer_text} \n \n {reference_text}"
+            message_placeholder.markdown(answer)
+            st.session_state.messages.append({"role": "assistant", "content": answer})
 
-            message_placeholder.markdown(full_response, unsafe_allow_html=True)
+        with (st.chat_message("assistant")):
+            message_placeholder = st.empty()
+            message_placeholder.markdown(reference_text, unsafe_allow_html=True)
 
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            st.session_state.messages.append({"role": "assistant", "content": reference_text})
+
