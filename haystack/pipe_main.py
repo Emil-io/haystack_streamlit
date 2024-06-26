@@ -6,7 +6,7 @@ from haystack.components.joiners import DocumentJoiner
 from haystack import Pipeline
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
 from pathlib import Path
-from haystack.components.embedders import SentenceTransformersTextEmbedder
+from haystack.components.embedders import SentenceTransformersTextEmbedder, SentenceTransformersDocumentEmbedder
 from haystack.components.builders import PromptBuilder
 from haystack.components.generators import HuggingFaceTGIGenerator
 from haystack_integrations.components.retrievers.opensearch import OpenSearchEmbeddingRetriever
@@ -52,7 +52,9 @@ def init_indexing_pipe():
     document_cleaner = DocumentCleaner()
     document_splitter = DocumentSplitter(split_by="word", split_length=150, split_overlap=50)
 
-    document_embedder = HuggingFaceTEIDocumentEmbedder(model="mixedbread-ai/mxbai-embed-large-v1")
+    document_embedder = HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
+                                              api_params={"model": "mixedbread-ai/mxbai-embed-large-v1"})
+    # document_embedder = SentenceTransformersDocumentEmbedder(model="./model/sentenceTransformer")
 
     document_writer = DocumentWriter(document_store, policy=DuplicatePolicy.OVERWRITE)
 
@@ -101,16 +103,33 @@ def init_query_pipeline():
     global pipe
     pipe = Pipeline()
     template = """
-    Beantworte die Frage anhand des gegebenen Kontexts.
+    Beantworte die Frage mithilfe der dir bereitsgestellten Dokumente. Gebe konkrete Antworten auf Basis der dir gegebenen Informationen. Nenne diese Informationen explizit und referenziere nicht einfach die Dokumente.
     
-    Merke zudem an, aus welchen Dokumenten du die Antowrten ziehst.
-
-    Kontext:
+    Das ist die Frage:
+    {{ question }}
+    
+    Befolge diese Regeln beim Beantworten der Frage:
+    Du beantwortest die Fragen wahrheitsgemäß auf Grundlage der vorgelegten Dokumente.
+    Prüfe bei jedem Dokument, ob es mit der Frage in Zusammenhang steht.
+    Verwende zur Beantwortung der Frage nur Dokumente, die mit der Frage in Zusammenhang stehen.
+    Ignoriere Dokumente, die keinen Bezug zur Frage haben.
+    Wenn die Antwort in mehreren Dokumenten enthalten ist, fasse diese zusammen.
+    Gebe eine präzise, exakte und strukturierte Antwort ohne die Frage zu wiederholen.
+    Verwende immer Verweise in der Form [NUMMER DES DOKUMENTS], wenn du in einem Satz Informationen aus einem Dokument verwendest, z. B. [3] wenn sich der Satz aus Informationen aus Dokument[3] bezieht.
+    Der Verweis besteht nur aus der Nummer des Dokuments in den Klammern am Ende des Satzes.
+    Andernfalls verwende in deiner Antwort keine Klammern.
+    Gib immer NUR die Nummer des Dokuments an, ohne das Wort Dokument jemals davor zu erwähnen.
+    
+    Dies sind die Dokumente:
+    ---
     {% for document in documents %}
+    
+        ### Dokument[{{ loop.index }}]
         {{ document.content }}
     {% endfor %}
-
-    Frage: {{ question }}
+    
+    ---
+    
     Antwort:
     """
     pipe = Pipeline()

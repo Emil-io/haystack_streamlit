@@ -28,9 +28,13 @@ class DocumentMetaAdder:
         for doc in documents:
             path = doc.meta["file_path"] + ".meta.json"
 
+            print("In the component loop")
+
             if os.path.exists(path):
+                print("Path exists")
                 with open(path, 'r') as file:
                     meta_data = json.load(file)
-                doc.meta.update(meta_data)
+                    print("Json opened")
+                    doc.meta.update(meta_data)
 
         return {"documents": documents}

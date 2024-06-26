@@ -14,6 +14,7 @@ def run_query(question: str):
     response = pipe_main.run_query(question)
     return response
 
+# delete index: curl -XDELETE "http://localhost:9200/default"
 
 # curl -X POST http://localhost:1416/index
 @app.post("/index")

@@ -1,6 +1,6 @@
 services:
   opensearch:
-    image:  opensearchproject/opensearch:latest
+    image:  opensearchproject/opensearch:2.13.0
     restart: always
     container_name: opensearch
     ports:
@@ -17,7 +17,7 @@ services:
       - mynetwork
 
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    image: opensearchproject/opensearch-dashboards:2.13.0 # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     container_name: opensearch-dashboards
     ports:
       - 5601:5601 # Map host port 5601 to container port 5601
@@ -31,17 +31,26 @@ services:
 
 
   haystack:
-    build: ./haystack
+    build:
+      context: ./haystack
+      dockerfile: Dockerfile
+    image: chat-haystack:latest
     container_name: haystack
     ports:
       - "1416:1416"
     environment:
       - HF_API_TOKEN=${HF_API_TOKEN}
+#   TODO: Check if volumes mapping allows making changes at runtime
+#    volumes:
+#      - ./haystack:/app
     networks:
       - mynetwork
 
   streamlit:
-    build: ./streamlit
+    build:
+      context: ./streamlit
+      dockerfile: Dockerfile
+    image: chat-streamlit:latest
     container_name: streamlit
     ports:
        - "8501:8501"
