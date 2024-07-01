@@ -18,9 +18,20 @@ st.title("Assistenz Chat-Bot")
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
+assistant_message_position = 0
+
 for message in st.session_state.messages:
     with st.chat_message(message['role']):
-        st.markdown(message['content'], unsafe_allow_html=True)
+        if message['role'] == 'user':
+            assistant_message_position = 0
+            st.markdown(message['content'])
+        elif message['role'] == 'assistant':
+            assistant_message_position += 1
+            if assistant_message_position == 2:
+                st.markdown(message['content'], unsafe_allow_html=True)
+            else:
+                st.markdown(message['content'])
+
 
 def format_answer(response):
     answer = response["llm"]["replies"][0]
@@ -38,13 +49,20 @@ def format_answer(response):
                     """
         count += 1
 
+    prompt = response["prompt_builder"]["prompt"]
+
+    reference_text = re.sub(r'\s+', ' ', reference_text).strip()
+
     reference_text = f"""
                 <details>
                     <summary>Referenzen</summary>
                     <blockquote>{reference_text}</blockquote>
                 </details>
+                <details>
+                    <summary>Prompt</summary>
+                    <blockquote>{prompt}</blockquote>
+                </details>
                 """
-    reference_text = re.sub(r'\s+', ' ', reference_text).strip()
 
     return answer, reference_text
 
@@ -73,7 +91,7 @@ if prompt := st.chat_input("Stellen Sie Ihre Frage"):
             answer_text = ""
 
             for word in answer.split(" "):
-                word = word.replace("$", "\$")
+                # word = word.replace("$", "\$")
                 answer_text += word + " "
 
                 message_placeholder.markdown(answer_text)

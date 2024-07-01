@@ -1,4 +1,4 @@
-FROM deepset/haystack:base-v2.1.1
+FROM deepset/haystack:base-v2.1.2
 
 WORKDIR /app
 

@@ -13,6 +13,8 @@ from haystack_integrations.components.retrievers.opensearch import OpenSearchEmb
 from haystack.components.embedders import HuggingFaceTEIDocumentEmbedder, HuggingFaceAPIDocumentEmbedder, HuggingFaceAPITextEmbedder
 from haystack.document_stores.types import DuplicatePolicy
 
+from haystack.components.rankers import MetaFieldRanker
+
 from DocumentMetaAdder import DocumentMetaAdder
 
 
@@ -42,7 +44,9 @@ def init_indexing_pipe():
     }
     document_store = OpenSearchDocumentStore(hosts=host_url, use_ssl=False,
                                              verify_certs=False, http_auth=(http_auth_username, http_auth_password),
-                                             embedding_dim=1024, settings=custom_settings)
+                                             embedding_dim=1024,
+                                             # settings=custom_settings
+                                             )
     file_type_router = FileTypeRouter(mime_types=["text/plain", "application/pdf", "text/markdown"])
     text_file_converter = TextFileToDocument()
     markdown_converter = MarkdownToDocument()
@@ -103,35 +107,40 @@ def init_query_pipeline():
     global pipe
     pipe = Pipeline()
     template = """
-    Beantworte die Frage mithilfe der dir bereitsgestellten Dokumente. Gebe konkrete Antworten auf Basis der dir gegebenen Informationen. Nenne diese Informationen explizit und referenziere nicht einfach die Dokumente.
-    
-    Das ist die Frage:
-    {{ question }}
-    
-    Befolge diese Regeln beim Beantworten der Frage:
-    Du beantwortest die Fragen wahrheitsgemäß auf Grundlage der vorgelegten Dokumente.
-    Prüfe bei jedem Dokument, ob es mit der Frage in Zusammenhang steht.
-    Verwende zur Beantwortung der Frage nur Dokumente, die mit der Frage in Zusammenhang stehen.
-    Ignoriere Dokumente, die keinen Bezug zur Frage haben.
-    Wenn die Antwort in mehreren Dokumenten enthalten ist, fasse diese zusammen.
-    Gebe eine präzise, exakte und strukturierte Antwort ohne die Frage zu wiederholen.
-    Verwende immer Verweise in der Form [NUMMER DES DOKUMENTS], wenn du in einem Satz Informationen aus einem Dokument verwendest, z. B. [3] wenn sich der Satz aus Informationen aus Dokument[3] bezieht.
-    Der Verweis besteht nur aus der Nummer des Dokuments in den Klammern am Ende des Satzes.
-    Andernfalls verwende in deiner Antwort keine Klammern.
-    Gib immer NUR die Nummer des Dokuments an, ohne das Wort Dokument jemals davor zu erwähnen.
-    
-    Dies sind die Dokumente:
-    ---
-    {% for document in documents %}
-    
-        ### Dokument[{{ loop.index }}]
-        {{ document.content }}
-    {% endfor %}
-    
-    ---
-    
-    Antwort:
-    """
+[INST]
+Beantworte die Frage mithilfe der dir bereitsgestellten Dokumente. Gebe konkrete Antworten auf Basis der dir gegebenen Informationen. Nenne diese Informationen explizit und referenziere nicht einfach die Dokumente.
+
+Das ist die Frage:
+{{ question }}
+
+Befolge diese Regeln beim Beantworten der Frage:
+Du beantwortest die Fragen wahrheitsgemäß auf Grundlage der vorgelegten Dokumente.
+Prüfe bei jedem Dokument, ob es mit der Frage in Zusammenhang steht.
+Verwende zur Beantwortung der Frage nur Dokumente, die mit der Frage in Zusammenhang stehen.
+Ignoriere Dokumente, die keinen Bezug zur Frage haben.
+Wenn die Antwort in mehreren Dokumenten enthalten ist, fasse diese zusammen.
+Gebe eine präzise, exakte und strukturierte Antwort ohne die Frage zu wiederholen.
+
+Verwende immer Verweise in der Form [NUMMER DES DOKUMENTS], wenn du in einem Satz Informationen aus einem Dokument verwendest, z. B. [3] wenn sich der Satz aus Informationen aus Dokument[3] bezieht.
+Der Verweis besteht nur aus der Nummer des Dokuments in den Klammern und befindet sich am Ende des jeweiligen Satzes.
+Andernfalls verwende in deiner Antwort keine Klammern.
+Gib immer NUR die Nummer des Dokuments an, ohne das Wort Dokument jemals davor zu erwähnen.
+Liste NICHT aggregiert alle Referenzen zusammenfassend erneut auf!
+
+---
+Dies sind die Dokumente:
+
+{% for document in documents %}
+
+Dokument[{{ loop.index }}]\n
+{{ document.content }}
+{% endfor %}
+
+---
+
+Antwort:
+[/INST]
+"""
     pipe = Pipeline()
     pipe.add_component("embedder", SentenceTransformersTextEmbedder(model="./model/sentenceTransformer"))
     pipe.add_component("retriever", OpenSearchEmbeddingRetriever(document_store=document_store, top_k=4))
@@ -146,17 +155,19 @@ def run_query(query: str):
     if pipe is None:
         init_query_pipeline()
 
-    question = (
-        "[INST] " + str(query) + "[/INST]"
-    )
+    # question = (
+    #     "[INST] " + str(query) + "[/INST]"
+    # )
     result = pipe.run(
         data = {
-            "embedder": {"text": question},
-            "prompt_builder": {"question": question},
+            "embedder": {"text": query},
+            "prompt_builder": {"question": query},
             "llm": {"generation_kwargs": {"max_new_tokens": 500}},
         },
         include_outputs_from=["prompt_builder", "llm", "retriever"]
     )
     print(str(result))
+
+    print(result["prompt_builder"]["prompt"])
 
     return result
